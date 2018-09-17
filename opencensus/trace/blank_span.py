@@ -16,6 +16,9 @@ from opencensus.trace import time_event as time_event_module
 from opencensus.trace.span_context import generate_span_id
 from opencensus.trace.tracers import base
 
+from opencensus.trace import stack_trace
+from opencensus.trace import status
+
 
 class BlankSpan(object):
     """A BlankSpan is an individual timed event which forms a node of the trace
@@ -40,20 +43,21 @@ class BlankSpan(object):
     """
 
     def __init__(
-            self,
-            name=None,
-            parent_span=None,
-            attributes=None,
-            start_time=None,
-            end_time=None,
-            span_id=None,
-            stack_trace=None,
-            time_events=None,
-            links=None,
-            status=None,
-            same_process_as_parent_span=None,
-            context_tracer=None,
-            span_kind=None):
+        self,
+        name=None,
+        parent_span=None,
+        attributes=None,
+        start_time=None,
+        end_time=None,
+        span_id=None,
+        stack_trace=None,
+        time_events=None,
+        links=None,
+        status=None,
+        same_process_as_parent_span=None,
+        context_tracer=None,
+        span_kind=None,
+    ):
         self.name = name
         self.parent_span = parent_span
         self.start_time = start_time
@@ -77,7 +81,7 @@ class BlankSpan(object):
         """The child spans of the current BlankSpan."""
         return list()
 
-    def span(self, name='child_span'):
+    def span(self, name="child_span"):
         """Create a child span for the current span and append it to the child
         spans list.
 
@@ -121,8 +125,11 @@ class BlankSpan(object):
         :param time_event: A TimeEvent object.
         """
         if not isinstance(time_event, time_event_module.TimeEvent):
-            raise TypeError("Type Error: received {}, but requires TimeEvent.".
-                            format(type(time_event).__name__))
+            raise TypeError(
+                "Type Error: received {}, but requires TimeEvent.".format(
+                    type(time_event).__name__
+                )
+            )
 
     def add_link(self, link):
         """No-op implementation of this method.
@@ -143,3 +150,20 @@ class BlankSpan(object):
     def __iter__(self):
         """Iterate through the span tree."""
         yield self
+
+    def __enter__(self):
+        """Start a span."""
+        self.start()
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        """Finish a span."""
+        if traceback is not None:
+            self.stack_trace = stack_trace.StackTrace.from_traceback(traceback)
+        if exception_value is not None:
+            self.status = status.Status.from_exception(exception_value)
+        if self.context_tracer is not None:
+            self.context_tracer.end_span()
+            return
+
+        self.finish()
