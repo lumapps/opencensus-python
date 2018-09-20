@@ -18,11 +18,11 @@ import re
 from opencensus.trace.span_context import SpanContext
 from opencensus.trace.trace_options import TraceOptions
 
-_TRACE_CONTEXT_HEADER_NAME = "X-Cloud-Trace-Context"
-_TRACE_CONTEXT_HEADER_FORMAT = "([0-9a-f]{32})(\/(\d+))?(;o=(\d+))?"
+_TRACE_CONTEXT_HEADER_NAME = 'X-Cloud-Trace-Context'
+_TRACE_CONTEXT_HEADER_FORMAT = '([0-9a-f]{32})(\/([0-9a-f]{16}))?(;o=(\d+))?'
 _TRACE_CONTEXT_HEADER_RE = re.compile(_TRACE_CONTEXT_HEADER_FORMAT)
-_TRACE_ID_DELIMETER = "/"
-_SPAN_ID_DELIMETER = ";"
+_TRACE_ID_DELIMETER = '/'
+_SPAN_ID_DELIMETER = ';'
 
 
 class GoogleCloudFormatPropagator(object):
@@ -31,7 +31,6 @@ class GoogleCloudFormatPropagator(object):
     format header. Later we will add implementation for supporting other
     format like binary format and zipkin, opencensus format.
     """
-
     def from_header(self, header):
         """Generate a SpanContext object using the trace context header.
         The value of enabled parsed from header is int. Need to convert to
@@ -51,10 +50,8 @@ class GoogleCloudFormatPropagator(object):
             match = re.search(_TRACE_CONTEXT_HEADER_RE, header)
         except TypeError:
             logging.warning(
-                "Header should be str, got {}. Cannot parse the header.".format(
-                    header.__class__.__name__
-                )
-            )
+                'Header should be str, got {}. Cannot parse the header.'
+                .format(header.__class__.__name__))
             raise
 
         if match:
@@ -69,15 +66,12 @@ class GoogleCloudFormatPropagator(object):
                 trace_id=trace_id,
                 span_id=span_id,
                 trace_options=TraceOptions(trace_options),
-                from_header=True,
-            )
+                from_header=True)
             return span_context
         else:
             logging.warning(
-                "Cannot parse the header {}, generate a new context instead.".format(
-                    header
-                )
-            )
+                'Cannot parse the header {}, generate a new context instead.'
+                .format(header))
             return SpanContext()
 
     def from_headers(self, headers):
@@ -94,7 +88,7 @@ class GoogleCloudFormatPropagator(object):
         header = headers.get(_TRACE_CONTEXT_HEADER_NAME)
         if header is None:
             return SpanContext()
-        header = str(header.encode("utf-8"))
+        header = str(header.encode('utf-8'))
         return self.from_header(header)
 
     def to_header(self, span_context):
@@ -111,7 +105,10 @@ class GoogleCloudFormatPropagator(object):
         span_id = span_context.span_id
         trace_options = span_context.trace_options.trace_options_byte
 
-        header = "{}/{};o={}".format(trace_id, span_id, int(trace_options))
+        header = '{}/{};o={}'.format(
+            trace_id,
+            span_id,
+            int(trace_options))
         return header
 
     def to_headers(self, span_context):
@@ -124,4 +121,6 @@ class GoogleCloudFormatPropagator(object):
         :rtype: dict
         :returns: Trace context headers in google cloud format.
         """
-        return {_TRACE_CONTEXT_HEADER_NAME: self.to_header(span_context)}
+        return {
+            _TRACE_CONTEXT_HEADER_NAME: self.to_header(span_context),
+        }
